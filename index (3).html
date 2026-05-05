@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Noted</title>
+
+  <!-- Supabase v2 — exposes globalThis.supabase = { createClient } -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet" />
+
+  <style>
+/* ============================================================
+   CSS — Noted
+============================================================ */
+:root {
+  --bg:           #f5f3ee;
+  --bg-card:      #faf9f5;
+  --bg-hover:     #f0ede5;
+  --border:       #e2ddd4;
+  --border-light: #eceae3;
+  --text:         #2c2a27;
+  --text-muted:   #8a8479;
+  --text-faint:   #b8b3a8;
+  --teal:         #2a9d8f;
+  --teal-light:   #3ab5a5;
+  --teal-dim:     #e8f5f3;
+  --teal-border:  #b8e0db;
+  --danger:       #c0392b;
+  --warn:         #e07b00;
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --font-body:    'DM Sans', sans-serif;
+  --radius:       10px;
+  --radius-lg:    16px;
+  --shadow:       0 1px 3px rgba(44,42,39,.07), 0 4px 16px rgba(44,42,39,.04);
+  --shadow-md:    0 2px 8px rgba(44,42,39,.10), 0 8px 32px rgba(44,42,39,.06);
+  --transition:   150ms ease;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; -webkit-font-smoothing: antialiased; }
+body { font-family: var(--font-body); background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.6; }
+
+/* ---- LAYOUT ---- */
+.app { display: none; }
+.app.ready { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 240px; flex-shrink: 0;
+  background: var(--bg-card); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+
+.sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid var(--border-light); }
+.logo-word { font-family: var(--font-display); font-size: 1.7rem; color: var(--text); letter-spacing: -.02em; display: block; }
+.logo-word span { color: var(--teal); }
+
+.sidebar-nav { padding: 16px 0; flex: 1; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 24px; color: var(--text-muted); font-weight: 500; font-size: .9rem;
+  cursor: pointer; border: none; background: none; width: 100%; text-align: left;
+  letter-spacing: .01em; transition: all var(--transition);
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--text); }
+.nav-item.active { color: var(--teal); background: var(--teal-dim); }
+.nav-item.active svg { stroke: var(--teal); }
+.nav-icon { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; flex-shrink: 0; }
+
+.nav-badge {
+  margin-left: auto; background: var(--teal); color: #fff;
+  font-size: .65rem; font-weight: 600; padding: 1px 6px;
+  border-radius: 20px; min-width: 18px; text-align: center;
+}
+
+.sidebar-user {
+  padding: 16px 24px; border-top: 1px solid var(--border-light);
+  display: flex; align-items: center; gap: 10px;
+}
+.sidebar-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; font-weight: 600; color: #fff; flex-shrink: 0;
+}
+.sidebar-username {
+  font-size: .82rem; font-weight: 500; color: var(--text);
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.btn-signout {
+  background: none; border: none; cursor: pointer; color: var(--text-faint);
+  padding: 4px; display: flex; align-items: center; transition: color var(--transition);
+}
+.btn-signout:hover { color: var(--danger); }
+
+/* ---- MAIN ---- */
+.main { flex: 1; display: flex; min-width: 0; }
+
+.feed-column {
+  flex: 1; max-width: 600px;
+  border-right: 1px solid var(--border-light); min-height: 100vh;
+}
+
+.column-header {
+  position: sticky; top: 0;
+  background: rgba(245,243,238,.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 16px 24px; z-index: 10;
+}
+.column-title { font-family: var(--font-display); font-size: 1.2rem; color: var(--text); letter-spacing: -.01em; }
+
+.right-panel { width: 300px; flex-shrink: 0; padding: 24px 20px; }
+
+/* ---- AUTH ---- */
+.auth-screen { display: none; min-height: 100vh; align-items: center; justify-content: center; padding: 40px 20px; }
+.auth-screen.active { display: flex; }
+
+.auth-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 48px 44px;
+  width: 100%; max-width: 420px; box-shadow: var(--shadow-md);
+}
+.auth-logo { font-family: var(--font-display); font-size: 2.4rem; color: var(--text); letter-spacing: -.03em; margin-bottom: 4px; display: block; }
+.auth-logo span { color: var(--teal); }
+.auth-tagline { color: var(--text-muted); font-size: .85rem; margin-bottom: 32px; }
+
+.auth-tabs { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 28px; }
+.auth-tab { flex: 1; padding: 9px; background: none; border: none; cursor: pointer; font-family: var(--font-body); font-size: .85rem; font-weight: 500; color: var(--text-muted); transition: all var(--transition); }
+.auth-tab.active { background: var(--teal); color: #fff; }
+
+.form-group { margin-bottom: 16px; }
+
+label { display: block; font-size: .78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; letter-spacing: .04em; text-transform: uppercase; }
+
+input[type="text"], input[type="email"], input[type="password"], textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px; font-family: var(--font-body); font-size: .9rem; color: var(--text);
+  outline: none; transition: border-color var(--transition), box-shadow var(--transition);
+}
+input:focus, textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(42,157,143,.12); }
+input::placeholder, textarea::placeholder { color: var(--text-faint); }
+textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+/* ---- BUTTONS ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 9px 20px; border-radius: var(--radius); font-family: var(--font-body);
+  font-size: .875rem; font-weight: 600; cursor: pointer; border: none;
+  transition: all var(--transition); letter-spacing: .01em; text-decoration: none;
+}
+.btn-primary { background: var(--teal); color: #fff; }
+.btn-primary:hover { background: var(--teal-light); }
+.btn-outline { background: none; border: 1px solid var(--border); color: var(--text-muted); }
+.btn-outline:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+.btn-ghost { background: none; border: none; color: var(--text-muted); padding: 6px 10px; }
+.btn-ghost:hover { color: var(--teal); background: var(--teal-dim); }
+.btn-full { width: 100%; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---- SEARCH ---- */
+.search-wrap { position: relative; margin-bottom: 20px; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; stroke: var(--text-faint); fill: none; stroke-width: 2; pointer-events: none; }
+.search-input { padding-left: 36px !important; font-size: .85rem !important; }
+.search-results {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-md); z-index: 100; max-height: 360px; overflow-y: auto; display: none;
+}
+.search-results.open { display: block; }
+.search-section-label { font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); padding: 10px 14px 4px; }
+.search-result-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer; font-size: .85rem; transition: background var(--transition); }
+.search-result-item:hover { background: var(--bg-hover); }
+
+/* ---- COMPOSE ---- */
+.compose-box { padding: 20px 24px; border-bottom: 1px solid var(--border-light); background: var(--bg-card); }
+.char-count { font-size: .75rem; color: var(--text-faint); }
+.char-count.warn { color: var(--warn); }
+.char-count.over { color: var(--danger); }
+
+/* ---- POST CARD ---- */
+.post-card {
+  padding: 20px 24px; border-bottom: 1px solid var(--border-light);
+  background: var(--bg-card); transition: background var(--transition); cursor: pointer;
+}
+.post-card:hover { background: var(--bg-hover); }
+.post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.post-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+.post-author-name { font-weight: 600; font-size: .88rem; color: var(--text); }
+.post-author-handle { font-size: .78rem; color: var(--text-faint); }
+.post-time { margin-left: auto; font-size: .75rem; color: var(--text-faint); }
+.post-body { font-size: .92rem; line-height: 1.6; color: var(--text); margin-bottom: 10px; white-space: pre-wrap; word-break: break-word; }
+.post-expanded-preview { font-size: .84rem; color: var(--text-muted); margin-bottom: 10px; border-left: 2px solid var(--border); padding-left: 10px; white-space: pre-wrap; word-break: break-word; }
+
+.post-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+.tag-pill { display: inline-flex; align-items: center; padding: 2px 9px; background: var(--teal-dim); border: 1px solid var(--teal-border); border-radius: 20px; font-size: .75rem; color: var(--teal); font-weight: 500; cursor: pointer; transition: all var(--transition); }
+.tag-pill:hover { background: var(--teal); color: #fff; }
+
+.post-actions { display: flex; align-items: center; gap: 4px; }
+.action-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: none; border: none; cursor: pointer; font-family: var(--font-body); font-size: .78rem; color: var(--text-faint); border-radius: var(--radius); transition: all var(--transition); }
+.action-btn:hover { color: var(--teal); background: var(--teal-dim); }
+.action-btn.liked { color: var(--teal); }
+.action-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
+.action-btn.liked svg { fill: var(--teal); }
+.delete-btn:hover { color: var(--danger) !important; background: #fdf0ef !important; }
+
+/* ---- POST DETAIL ---- */
+.post-full-body { padding: 20px 24px; border-bottom: 1px solid var(--border-light); }
+.post-full-expanded { padding: 16px 24px; border-bottom: 1px solid var(--border-light); background: var(--bg); }
+.expanded-label { font-size: .72rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 8px; }
+
+/* ---- DM ---- */
+.dm-view { display: none; }
+.dm-view.active { display: flex; min-height: 100vh; }
+.dm-list { width: 280px; border-right: 1px solid var(--border); background: var(--bg-card); overflow-y: auto; }
+.dm-list-header { padding: 20px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; }
+.dm-list-title { font-family: var(--font-display); font-size: 1.1rem; }
+.conversation-item { display: flex; align-items: center; gap: 10px; padding: 14px 20px; cursor: pointer; border-bottom: 1px solid var(--border-light); transition: background var(--transition); }
+.conversation-item:hover, .conversation-item.active { background: var(--bg-hover); }
+.conv-info { flex: 1; min-width: 0; }
+.conv-name { font-size: .87rem; font-weight: 600; }
+.conv-preview { font-size: .78rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv-unread { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); flex-shrink: 0; }
+.dm-chat { flex: 1; display: flex; flex-direction: column; }
+.chat-header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; background: var(--bg-card); position: sticky; top: 0; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 10px; min-height: 200px; }
+.chat-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: .85rem; padding: 48px; }
+.message-bubble { max-width: 70%; padding: 10px 14px; border-radius: 14px; font-size: .88rem; line-height: 1.5; word-break: break-word; }
+.message-bubble.mine { background: var(--teal); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.message-bubble.theirs { background: var(--bg-hover); color: var(--text); align-self: flex-start; border-bottom-left-radius: 4px; }
+.message-time { font-size: .65rem; opacity: .6; margin-top: 3px; text-align: right; }
+.message-bubble.theirs .message-time { text-align: left; }
+.chat-input-area { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-end; background: var(--bg-card); }
+.chat-input { flex: 1; resize: none; min-height: 40px; max-height: 120px; padding: 10px 14px !important; font-size: .875rem !important; }
+
+/* ---- PROFILE ---- */
+.profile-header { padding: 24px; border-bottom: 1px solid var(--border-light); background: var(--bg-card); }
+.profile-avatar-lg { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 700; color: #fff; margin-bottom: 14px; box-shadow: var(--shadow); }
+.profile-display-name { font-family: var(--font-display); font-size: 1.3rem; margin-bottom: 2px; }
+.profile-handle { font-size: .82rem; color: var(--text-muted); margin-bottom: 8px; }
+.profile-bio { font-size: .88rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px; }
+.profile-stats { display: flex; gap: 20px; margin-bottom: 16px; }
+.profile-stat { text-align: center; }
+.profile-stat-num { font-weight: 700; font-size: 1rem; color: var(--text); }
+.profile-stat-label { font-size: .72rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: .04em; }
+
+/* ---- TRENDING TAGS ---- */
+.trending-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+.trending-title { font-family: var(--font-display); font-size: 1rem; margin-bottom: 12px; color: var(--text); }
+.trending-tag { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-light); cursor: pointer; transition: color var(--transition); }
+.trending-tag:last-child { border-bottom: none; }
+.trending-tag:hover .trending-tag-name { color: var(--teal); }
+.trending-tag-name { font-size: .85rem; font-weight: 500; }
+.trending-tag-count { font-size: .75rem; color: var(--text-faint); }
+
+/* ---- UTILITY ---- */
+.page { display: none; }
+.page.active { display: block; }
+.loading-state { padding: 40px 24px; text-align: center; color: var(--text-faint); font-size: .88rem; }
+.empty-state { padding: 48px 24px; text-align: center; color: var(--text-muted); }
+.empty-state-title { font-family: var(--font-display); font-size: 1.15rem; margin-bottom: 6px; color: var(--text); }
+.empty-state-desc { font-size: .85rem; }
+.error-msg { background: #fdf0ef; border: 1px solid #f5c6c3; color: var(--danger); border-radius: var(--radius); padding: 10px 14px; font-size: .82rem; margin-bottom: 14px; }
+.back-btn { display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; color: var(--text-muted); cursor: pointer; background: none; border: none; padding: 0; font-family: var(--font-body); transition: color var(--transition); }
+.back-btn:hover { color: var(--teal); }
+.back-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+/* ---- TOAST ---- */
+#toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--text); color: #fff; padding: 10px 20px; border-radius: 40px;
+  font-size: .82rem; font-weight: 500; pointer-events: none; opacity: 0;
+  transition: opacity .2s, transform .2s; z-index: 9999;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---- MOBILE NAV ---- */
+.mobile-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 50; padding: 4px 0 8px; }
+.mobile-nav-items { display: flex; width: 100%; }
+.mobile-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; background: none; border: none; cursor: pointer; color: var(--text-faint); font-size: .6rem; font-family: var(--font-body); font-weight: 500; transition: color var(--transition); }
+.mobile-nav-item.active { color: var(--teal); }
+.mobile-nav-item svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .right-panel { display: none; }
+  .mobile-nav { display: flex; }
+  .app.ready { padding-bottom: 60px; }
+  .feed-column { max-width: 100%; border-right: none; }
+  .dm-list { width: 100%; }
+}
+
+/* ---- ANIMATIONS ---- */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.post-card { animation: fadeUp 200ms ease both; }
+.post-card:nth-child(1) { animation-delay: 0ms; }
+.post-card:nth-child(2) { animation-delay: 30ms; }
+.post-card:nth-child(3) { animation-delay: 60ms; }
+.post-card:nth-child(4) { animation-delay: 90ms; }
+.post-card:nth-child(5) { animation-delay: 120ms; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--teal); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 6px; }
+  </style>
+</head>
+<body>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<!-- =====================================================
+     AUTH SCREEN
+====================================================== -->
+<div class="auth-screen active" id="authScreen">
+  <div class="auth-card">
+    <span class="auth-logo">Not<span>e</span>d</span>
+    <p class="auth-tagline">A quiet place to write, share, and connect.</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabSignIn" onclick="switchAuthTab('signin')">Sign in</button>
+      <button class="auth-tab"        id="tabSignUp" onclick="switchAuthTab('signup')">Sign up</button>
+    </div>
+
+    <div id="authError" class="error-msg" style="display:none;"></div>
+
+    <!-- Sign-in form -->
+    <div id="formSignIn">
+      <div class="form-group">
+        <label for="siEmail">Email</label>
+        <input type="email" id="siEmail" placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="siPassword">Password</label>
+        <input type="password" id="siPassword" placeholder="••••••••" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter') handleSignIn()" />
+      </div>
+      <button class="btn btn-primary btn-full" id="btnSignIn" onclick="handleSignIn()">Sign in</button>
+    </div>
+
+    <!-- Sign-up form -->
+    <div id="formSignUp" style="display:none;">
+      <div class="form-group">
+        <label for="suEmail">Email</label>
+        <input type="email" id="suEmail" placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="suUsername">Username</label>
+        <input type="text" id="suUsername" placeholder="yourhandle" autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label for="suDisplayName">Display name</label>
+        <input type="text" id="suDisplayName" placeholder="Your Name" />
+      </div>
+      <div class="form-group">
+        <label for="suPassword">Password</label>
+        <input type="password" id="suPassword" placeholder="••••••••" autocomplete="new-password"
+          onkeydown="if(event.key==='Enter') handleSignUp()" />
+      </div>
+      <button class="btn btn-primary btn-full" id="btnSignUp" onclick="handleSignUp()">Create account</button>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
+     MAIN APP
+====================================================== -->
+<div class="app" id="app">
+
+  <!-- ---- SIDEBAR ---- -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-word">Not<span>e</span>d</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item active" id="navFeed" onclick="showPage('feed')">
+        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Feed
+      </button>
+      <button class="nav-item" id="navProfile" onclick="showPage('profile')">
+        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Profile
+      </button>
+      <button class="nav-item" id="navMessages" onclick="showPage('messages')">
+        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Messages
+        <span class="nav-badge" id="unreadBadge" style="display:none;">0</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-user" id="sidebarUser">
+      <div class="sidebar-avatar" id="sidebarAvatar"></div>
+      <span class="sidebar-username" id="sidebarUsername"></span>
+      <button class="btn-signout" title="Sign out" onclick="handleSignOut()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ---- MAIN CONTENT ---- -->
+  <div class="main">
+
+    <!-- == FEED COLUMN == -->
+    <div class="feed-column">
+
+      <!-- Feed page -->
+      <div class="page active" id="pageFeed">
+        <div class="column-header">
+          <span class="column-title">Feed</span>
+        </div>
+
+        <!-- Compose box -->
+        <div class="compose-box" id="composeBox" style="display:none;">
+          <div class="form-group" style="margin-bottom:8px;">
+            <textarea id="composeBody" placeholder="What's on your mind?" style="min-height:72px;"></textarea>
+          </div>
+          <div id="composeExpanded" style="display:none; margin-bottom:8px;">
+            <textarea id="composeExpandedBody" placeholder="Expanded thoughts (optional)…" style="min-height:60px;"></textarea>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="btn btn-ghost" style="font-size:.78rem; padding:4px 8px;" onclick="toggleExpanded()">+ Extended notes</button>
+              <input type="text" id="composeTags" placeholder="Tags (comma separated)" style="font-size:.8rem; padding:6px 10px; width:180px;" />
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span id="charCount" class="char-count">280</span>
+              <button class="btn btn-primary" id="btnPost" onclick="handlePost()">Post</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feed list -->
+        <div id="feedList">
+          <div class="loading-state"><span class="spinner"></span>Loading feed…</div>
+        </div>
+      </div>
+
+      <!-- Profile page -->
+      <div class="page" id="pageProfile">
+        <div class="column-header">
+          <span class="column-title">Profile</span>
+        </div>
+        <div id="profileContent"><div class="loading-state">Loading…</div></div>
+      </div>
+
+      <!-- Messages page -->
+      <div class="page" id="pageMessages">
+        <div class="dm-view active" id="dmView">
+          <div class="dm-list">
+            <div class="dm-list-header"><span class="dm-list-title">Messages</span></div>
+            <div id="conversationList"><div class="loading-state">Loading…</div></div>
+          </div>
+          <div class="dm-chat" id="dmChat">
+            <div class="chat-empty" id="chatEmpty">Select a conversation</div>
+            <div id="activeChatWrap" style="display:none; flex-direction:column; flex:1;">
+              <div class="chat-header" id="chatHeader"></div>
+              <div class="chat-messages" id="chatMessages"></div>
+              <div class="chat-input-area">
+                <textarea class="chat-input" id="chatInput" placeholder="Type a message…" rows="1"
+                  onkeydown="chatInputKeydown(event)"></textarea>
+                <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Post detail page -->
+      <div class="page" id="pagePostDetail">
+        <div class="column-header" style="display:flex; align-items:center; gap:12px;">
+          <button class="back-btn" onclick="showPage('feed')">
+            <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            Back
+          </button>
+          <span class="column-title">Post</span>
+        </div>
+        <div id="postDetailContent"><div class="loading-state">Loading…</div></div>
+      </div>
+
+      <!-- Tag feed page -->
+      <div class="page" id="pageTagFeed">
+        <div class="column-header" style="display:flex; align-items:center; gap:12px;">
+          <button class="back-btn" onclick="showPage('feed')">
+            <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            Back
+          </button>
+          <span class="column-title" id="tagFeedTitle">#tag</span>
+        </div>
+        <div id="tagFeedList"><div class="loading-state">Loading…</div></div>
+      </div>
+
+    </div><!-- /feed-column -->
+
+    <!-- ---- RIGHT PANEL ---- -->
+    <aside class="right-panel">
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-input" type="text" id="searchInput" placeholder="Search posts…"
+          oninput="handleSearch(this.value)" onfocus="openSearch()" />
+        <div class="search-results" id="searchResults"></div>
+      </div>
+
+      <div class="trending-card">
+        <div class="trending-title">Trending</div>
+        <div id="trendingList"><div class="loading-state" style="padding:12px 0; font-size:.8rem;">Loading…</div></div>
+      </div>
+    </aside>
+
+  </div><!-- /main -->
+
+  <!-- ---- MOBILE NAV ---- -->
+  <nav class="mobile-nav">
+    <div class="mobile-nav-items">
+      <button class="mobile-nav-item active" id="mNavFeed" onclick="showPage('feed')">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Feed
+      </button>
+      <button class="mobile-nav-item" id="mNavProfile" onclick="showPage('profile')">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Profile
+      </button>
+      <button class="mobile-nav-item" id="mNavMessages" onclick="showPage('messages')">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Messages
+      </button>
+    </div>
+  </nav>
+
+</div><!-- /app -->
+
+<!-- =====================================================
+     SCRIPTS
+====================================================== -->
+<script>
+// ============================================================
+//  CONFIG — replace with your own Supabase credentials
+// ============================================================
+const SUPABASE_URL     = "https://gwzrzbwlfoymceccghpe.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_5BER-gc7-Bm6tnnub2jupw_9T-8dzFK";
+
+// FIX: Supabase v2 CDN exposes `supabase.createClient`, not `window.supabase.createClient`
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ============================================================
+//  POSTS module
+// ============================================================
+const Posts = (() => {
+  const CHAR_LIMIT = 280;
+
+  function avatarColor(str = '') {
+    const colors = ['#2a9d8f','#264653','#e76f51','#e9c46a','#457b9d','#6d6875','#3d405b','#81b29a'];
+    let h = 0;
+    for (const c of str) h = (h * 31 + c.charCodeAt(0)) % colors.length;
+    return colors[Math.abs(h)];
+  }
+
+  function initials(name = '') {
+    return name.split(' ').map(w => w[0] || '').join('').slice(0, 2).toUpperCase() || '?';
+  }
+
+  function relTime(ts) {
+    const d = (Date.now() - new Date(ts)) / 1000;
+    if (d < 60)    return 'just now';
+    if (d < 3600)  return Math.floor(d / 60) + 'm';
+    if (d < 86400) return Math.floor(d / 3600) + 'h';
+    return Math.floor(d / 86400) + 'd';
+  }
+
+  function buildAvatarHtml(profile, size = 'post') {
+    const cls = size === 'post' ? 'post-avatar' : 'sidebar-avatar';
+    const col = avatarColor(profile?.username || 'x');
+    const ini = initials(profile?.display_name || profile?.username || '?');
+    return `<div class="${cls}" style="background:${col}">${ini}</div>`;
+  }
+
+  function renderCard(post, currentUserId, likedSet) {
+    const profile  = post.profiles;
+    const col      = avatarColor(profile?.username);
+    const ini      = initials(profile?.display_name || profile?.username);
+    const tags     = (post.post_tags || []).map(pt => pt.tags?.name).filter(Boolean);
+    const liked    = likedSet.has(post.id);
+    const likeCount = post.likes?.length ?? 0;
+
+    const tagsHtml = tags.map(t =>
+      `<span class="tag-pill" data-tag="${t}">#${escHtml(t)}</span>`
+    ).join('');
+
+    const expandedHtml = post.expanded_body
+      ? `<div class="post-expanded-preview">${escHtml(post.expanded_body.slice(0, 140))}${post.expanded_body.length > 140 ? '…' : ''}</div>`
+      : '';
+
+    return `
+      <article class="post-card" data-id="${post.id}">
+        <div class="post-header">
+          <div class="post-avatar" style="background:${col}">${ini}</div>
+          <div>
+            <div class="post-author-name">${escHtml(profile?.display_name || profile?.username || 'Unknown')}</div>
+            <div class="post-author-handle">@${escHtml(profile?.username || '')}</div>
+          </div>
+          <span class="post-time">${relTime(post.created_at)}</span>
+        </div>
+        <div class="post-body">${escHtml(post.body)}</div>
+        ${expandedHtml}
+        ${tags.length ? `<div class="post-tags">${tagsHtml}</div>` : ''}
+        <div class="post-actions" onclick="event.stopPropagation()">
+          <button class="action-btn like-btn ${liked ? 'liked' : ''}" data-id="${post.id}" data-liked="${liked}">
+            <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <span class="like-count">${likeCount}</span>
+          </button>
+          ${currentUserId ? `<button class="action-btn dm-btn" data-author-id="${escHtml(profile?.id || '')}" data-author-name="${escHtml(profile?.display_name || profile?.username || '')}">
+            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Message
+          </button>` : ''}
+          ${currentUserId === post.author_id
+            ? `<button class="action-btn delete-btn" data-id="${post.id}">
+              <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              Delete
+            </button>`
+            : ''}
+        </div>
+      </article>`;
+  }
+
+  function escHtml(str = '') {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  async function fetchFeed(opts = {}) {
+    let q = _sb
+      .from('posts')
+      .select(`
+        id, body, expanded_body, created_at, author_id,
+        profiles (id, username, display_name, avatar_color),
+        post_tags (tags (name)),
+        likes (user_id)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(opts.limit || 40);
+
+    if (opts.authorId) q = q.eq('author_id', opts.authorId);
+    if (opts.tag) {
+      const { data: tagData } = await _sb.from('tags').select('id').eq('name', opts.tag).maybeSingle();
+      if (!tagData) return [];
+      const { data: ptData } = await _sb.from('post_tags').select('post_id').eq('tag_id', tagData.id);
+      const ids = (ptData || []).map(r => r.post_id);
+      if (!ids.length) return [];
+      q = q.in('id', ids);
+    }
+    if (opts.search) q = q.ilike('body', `%${opts.search}%`);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function fetchPost(id) {
+    const { data, error } = await _sb
+      .from('posts')
+      .select(`
+        id, body, expanded_body, created_at, author_id,
+        profiles (id, username, display_name, avatar_color),
+        post_tags (tags (name)),
+        likes (user_id)
+      `)
+      .eq('id', id)
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function createPost({ body, expandedBody, tags, authorId }) {
+    const { data: post, error } = await _sb
+      .from('posts')
+      .insert({ body, expanded_body: expandedBody || null, author_id: authorId })
+      .select()
+      .single();
+    if (error) throw error;
+
+    if (tags && tags.length) {
+      for (const name of tags) {
+        const clean = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!clean) continue;
+        const { data: tag } = await _sb
+          .from('tags')
+          .upsert({ name: clean }, { onConflict: 'name' })
+          .select()
+          .single();
+        if (tag) {
+          await _sb.from('post_tags').insert({ post_id: post.id, tag_id: tag.id });
+        }
+      }
+    }
+    return post;
+  }
+
+  async function deletePost(id) {
+    const { error } = await _sb.from('posts').delete().eq('id', id);
+    if (error) throw error;
+  }
+
+  async function toggleLike(postId, userId, currentlyLiked) {
+    if (currentlyLiked) {
+      await _sb.from('likes').delete().match({ post_id: postId, user_id: userId });
+    } else {
+      await _sb.from('likes').insert({ post_id: postId, user_id: userId });
+    }
+  }
+
+  async function fetchTrendingTags(limit = 8) {
+    const { data, error } = await _sb.from('post_tags').select('tags (name)').limit(200);
+    if (error || !data) return [];
+    const counts = {};
+    data.forEach(r => {
+      const n = r.tags?.name;
+      if (n) counts[n] = (counts[n] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([name, count]) => ({ name, count }));
+  }
+
+  return {
+    fetchFeed, fetchPost, createPost, deletePost, toggleLike,
+    fetchTrendingTags, renderCard, buildAvatarHtml, avatarColor, initials,
+    escHtml, CHAR_LIMIT
+  };
+})();
+
+// ============================================================
+//  AUTH module
+// ============================================================
+const Auth = (() => {
+  let _user = null;
+  let _profile = null;
+
+  async function getUser()    { return _user; }
+  async function getProfile() { return _profile; }
+
+  async function fetchProfile(userId) {
+    const { data } = await _sb.from('profiles').select('*').eq('id', userId).single();
+    return data;
+  }
+
+  async function init() {
+    const { data: { session } } = await _sb.auth.getSession();
+    if (session?.user) {
+      _user    = session.user;
+      _profile = await fetchProfile(_user.id);
+    }
+    _sb.auth.onAuthStateChange(async (event, session) => {
+      _user    = session?.user ?? null;
+      _profile = _user ? await fetchProfile(_user.id) : null;
+    });
+    return { user: _user, profile: _profile };
+  }
+
+  async function signUp({ email, password, username, displayName }) {
+    const usernameClean = username.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    const { data: existing } = await _sb.from('profiles').select('id').eq('username', usernameClean).maybeSingle();
+    if (existing) throw new Error('Username already taken');
+
+    const { data, error } = await _sb.auth.signUp({
+      email, password,
+      options: { data: { username: usernameClean, display_name: displayName || usernameClean } }
+    });
+    if (error) throw error;
+    _user = data.user;
+    await new Promise(r => setTimeout(r, 900));
+    _profile = await fetchProfile(_user.id);
+    return { user: _user, profile: _profile };
+  }
+
+  async function signIn({ email, password }) {
+    const { data, error } = await _sb.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    _user    = data.user;
+    _profile = await fetchProfile(_user.id);
+    return { user: _user, profile: _profile };
+  }
+
+  async function signOut() {
+    await _sb.auth.signOut();
+    _user = null; _profile = null;
+  }
+
+  async function refreshProfile() {
+    if (_user) _profile = await fetchProfile(_user.id);
+    return _profile;
+  }
+
+  return { init, getUser, getProfile, signUp, signIn, signOut, refreshProfile, fetchProfile };
+})();
+
+// ============================================================
+//  App state
+// ============================================================
+let currentUser    = null;
+let currentProfile = null;
+let currentPage    = 'feed';
+let activeConvId   = null;
+let realtimeSub    = null;
+let searchTimer    = null;
+let expandedOpen   = false;
+let unreadTimer    = null;
+
+// ============================================================
+//  Toast
+// ============================================================
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ============================================================
+//  Boot
+// ============================================================
+(async () => {
+  try {
+    const { user, profile } = await Auth.init();
+    if (user) {
+      currentUser    = user;
+      currentProfile = profile;
+      bootApp();
+    } else {
+      document.getElementById('authScreen').classList.add('active');
+    }
+  } catch (e) {
+    document.getElementById('authScreen').classList.add('active');
+    console.error('Boot error:', e);
+  }
+})();
+
+function bootApp() {
+  document.getElementById('authScreen').classList.remove('active');
+  document.getElementById('app').classList.add('ready');
+
+  // Sidebar
+  const av = document.getElementById('sidebarAvatar');
+  av.style.background = Posts.avatarColor(currentProfile?.username);
+  av.textContent      = Posts.initials(currentProfile?.display_name || currentProfile?.username);
+  document.getElementById('sidebarUsername').textContent =
+    currentProfile?.display_name || currentProfile?.username || currentUser.email;
+
+  // Show compose
+  document.getElementById('composeBox').style.display = '';
+
+  // Character counter
+  document.getElementById('composeBody').addEventListener('input', function () {
+    const rem = Posts.CHAR_LIMIT - this.value.length;
+    const el  = document.getElementById('charCount');
+    el.textContent = rem;
+    el.className   = 'char-count' + (rem < 0 ? ' over' : rem < 30 ? ' warn' : '');
+  });
+
+  showPage('feed');
+  loadTrending();
+  subscribeRealtime();
+  pollUnread();
+  unreadTimer = setInterval(pollUnread, 30000);
+}
+
+// ============================================================
+//  Auth handlers
+// ============================================================
+function switchAuthTab(tab) {
+  document.getElementById('formSignIn').style.display = tab === 'signin' ? '' : 'none';
+  document.getElementById('formSignUp').style.display = tab === 'signup' ? '' : 'none';
+  document.getElementById('tabSignIn').classList.toggle('active', tab === 'signin');
+  document.getElementById('tabSignUp').classList.toggle('active', tab === 'signup');
+  hideAuthError();
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent   = msg;
+  el.style.display = '';
+}
+function hideAuthError() { document.getElementById('authError').style.display = 'none'; }
+
+async function handleSignIn() {
+  hideAuthError();
+  const btn = document.getElementById('btnSignIn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Signing in…';
+  try {
+    const { user, profile } = await Auth.signIn({
+      email:    document.getElementById('siEmail').value.trim(),
+      password: document.getElementById('siPassword').value,
+    });
+    currentUser = user; currentProfile = profile;
+    bootApp();
+  } catch (e) { showAuthError(e.message); }
+  btn.disabled = false; btn.textContent = 'Sign in';
+}
+
+async function handleSignUp() {
+  hideAuthError();
+  const btn = document.getElementById('btnSignUp');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Creating account…';
+  try {
+    const { user, profile } = await Auth.signUp({
+      email:       document.getElementById('suEmail').value.trim(),
+      password:    document.getElementById('suPassword').value,
+      username:    document.getElementById('suUsername').value.trim(),
+      displayName: document.getElementById('suDisplayName').value.trim(),
+    });
+    currentUser = user; currentProfile = profile;
+    bootApp();
+  } catch (e) { showAuthError(e.message); }
+  btn.disabled = false; btn.textContent = 'Create account';
+}
+
+async function handleSignOut() {
+  await Auth.signOut();
+  clearInterval(unreadTimer);
+  currentUser = null; currentProfile = null;
+  document.getElementById('app').classList.remove('ready');
+  document.getElementById('authScreen').classList.add('active');
+  if (realtimeSub) { _sb.removeChannel(realtimeSub); realtimeSub = null; }
+}
+
+// ============================================================
+//  Page routing
+// ============================================================
+function showPage(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
+
+  const pageMap = {
+    feed:       { pageId: 'pageFeed',       navId: 'navFeed',     mNavId: 'mNavFeed'     },
+    profile:    { pageId: 'pageProfile',    navId: 'navProfile',  mNavId: 'mNavProfile'  },
+    messages:   { pageId: 'pageMessages',   navId: 'navMessages', mNavId: 'mNavMessages' },
+    postDetail: { pageId: 'pagePostDetail', navId: null,          mNavId: null           },
+    tagFeed:    { pageId: 'pageTagFeed',    navId: null,          mNavId: null           },
+  };
+
+  const m = pageMap[page];
+  if (!m) return;
+  document.getElementById(m.pageId).classList.add('active');
+  if (m.navId)  document.getElementById(m.navId)?.classList.add('active');
+  if (m.mNavId) document.getElementById(m.mNavId)?.classList.add('active');
+
+  if (page === 'feed')     loadFeed();
+  if (page === 'profile')  loadProfilePage();
+  if (page === 'messages') loadConversations();
+}
+
+// ============================================================
+//  Feed
+// ============================================================
+async function loadFeed(opts = {}) {
+  const container = document.getElementById('feedList');
+  container.innerHTML = '<div class="loading-state"><span class="spinner"></span>Loading feed…</div>';
+  try {
+    const posts = await Posts.fetchFeed(opts);
+    renderFeed(posts, container);
+  } catch (e) {
+    container.innerHTML = `<div class="loading-state">${Posts.escHtml(e.message)}</div>`;
+  }
+}
+
+function renderFeed(posts, container) {
+  if (!posts.length) {
+    container.innerHTML = `<div class="empty-state">
+      <div class="empty-state-title">Nothing here yet</div>
+      <div class="empty-state-desc">Be the first to post something!</div>
+    </div>`;
+    return;
+  }
+  const likedSet = buildLikedSet(posts);
+  container.innerHTML = posts.map(p => Posts.renderCard(p, currentUser?.id, likedSet)).join('');
+  attachFeedListeners(container);
+}
+
+function buildLikedSet(posts) {
+  const s = new Set();
+  if (!currentUser) return s;
+  posts.forEach(p => {
+    if ((p.likes || []).some(l => l.user_id === currentUser.id)) s.add(p.id);
+  });
+  return s;
+}
+
+function attachFeedListeners(container) {
+  // Post card → detail
+  container.querySelectorAll('.post-card').forEach(card => {
+    card.addEventListener('click', () => openPostDetail(card.dataset.id));
+  });
+
+  // Like
+  container.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!currentUser) { showToast('Sign in to like posts'); return; }
+      const liked = btn.dataset.liked === 'true';
+      btn.dataset.liked = !liked;
+      btn.classList.toggle('liked', !liked);
+      const countEl = btn.querySelector('.like-count');
+      if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent || '0') + (liked ? -1 : 1));
+      try {
+        await Posts.toggleLike(btn.dataset.id, currentUser.id, liked);
+      } catch (e) {
+        // revert on error
+        btn.dataset.liked = liked;
+        btn.classList.toggle('liked', liked);
+        if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent || '0') + (liked ? 1 : -1));
+      }
+    });
+  });
+
+  // Delete
+  container.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm('Delete this post?')) return;
+      try {
+        await Posts.deletePost(btn.dataset.id);
+        showToast('Post deleted');
+        loadFeed();
+      } catch (e) { showToast('Error: ' + e.message); }
+    });
+  });
+
+  // Tag pills
+  container.querySelectorAll('.tag-pill').forEach(pill => {
+    pill.addEventListener('click', e => { e.stopPropagation(); openTagFeed(pill.dataset.tag); });
+  });
+
+  // DM button
+  container.querySelectorAll('.dm-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openDm(btn.dataset.authorId, btn.dataset.authorName);
+    });
+  });
+}
+
+// ============================================================
+//  Compose
+// ============================================================
+function toggleExpanded() {
+  expandedOpen = !expandedOpen;
+  document.getElementById('composeExpanded').style.display = expandedOpen ? '' : 'none';
+}
+
+async function handlePost() {
+  const body = document.getElementById('composeBody').value.trim();
+  if (!body) return;
+  if (body.length > Posts.CHAR_LIMIT) { showToast('Post is too long!'); return; }
+  const btn = document.getElementById('btnPost');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Posting…';
+
+  const tagsRaw    = document.getElementById('composeTags').value;
+  const tags       = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
+  const expandedBody = document.getElementById('composeExpandedBody').value.trim();
+
+  try {
+    await Posts.createPost({ body, expandedBody, tags, authorId: currentUser.id });
+    document.getElementById('composeBody').value         = '';
+    document.getElementById('composeTags').value         = '';
+    document.getElementById('composeExpandedBody').value = '';
+    document.getElementById('charCount').textContent     = Posts.CHAR_LIMIT;
+    document.getElementById('charCount').className       = 'char-count';
+    if (expandedOpen) toggleExpanded();
+    showToast('Posted!');
+    loadFeed();
+    loadTrending();
+  } catch (e) { showToast('Error: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'Post';
+}
+
+// ============================================================
+//  Post detail
+// ============================================================
+async function openPostDetail(id) {
+  showPage('postDetail');
+  const container = document.getElementById('postDetailContent');
+  container.innerHTML = '<div class="loading-state"><span class="spinner"></span>Loading…</div>';
+  try {
+    const post    = await Posts.fetchPost(id);
+    const likedSet = buildLikedSet([post]);
+    const tags    = (post.post_tags || []).map(pt => pt.tags?.name).filter(Boolean);
+    const profile = post.profiles;
+
+    container.innerHTML = `
+      <div class="post-full-body">
+        <div class="post-header" style="margin-bottom:12px;">
+          ${Posts.buildAvatarHtml(profile, 'post')}
+          <div>
+            <div class="post-author-name">${Posts.escHtml(profile?.display_name || profile?.username || 'Unknown')}</div>
+            <div class="post-author-handle">@${Posts.escHtml(profile?.username || '')}</div>
+          </div>
+        </div>
+        <div style="font-size:1.05rem; line-height:1.7; margin-bottom:14px; white-space:pre-wrap; word-break:break-word;">${Posts.escHtml(post.body)}</div>
+        ${tags.length ? `<div class="post-tags">${tags.map(t => `<span class="tag-pill" data-tag="${t}">#${Posts.escHtml(t)}</span>`).join('')}</div>` : ''}
+        <div class="post-actions">
+          <button class="action-btn like-btn ${likedSet.has(post.id) ? 'liked' : ''}" data-id="${post.id}" data-liked="${likedSet.has(post.id)}">
+            <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <span class="like-count">${post.likes?.length ?? 0}</span>
+          </button>
+        </div>
+      </div>
+      ${post.expanded_body ? `
+      <div class="post-full-expanded">
+        <div class="expanded-label">Extended notes</div>
+        <div style="font-size:.93rem; line-height:1.7; color:var(--text-muted); white-space:pre-wrap; word-break:break-word;">${Posts.escHtml(post.expanded_body)}</div>
+      </div>` : ''}
+    `;
+
+    // Like in detail
+    container.querySelector('.like-btn')?.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!currentUser) { showToast('Sign in to like'); return; }
+      const el    = e.currentTarget;
+      const liked = el.dataset.liked === 'true';
+      el.dataset.liked = !liked;
+      el.classList.toggle('liked', !liked);
+      const countEl = el.querySelector('.like-count');
+      if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent||'0') + (liked ? -1 : 1));
+      await Posts.toggleLike(post.id, currentUser.id, liked);
+    });
+
+    container.querySelectorAll('.tag-pill').forEach(pill => {
+      pill.addEventListener('click', () => openTagFeed(pill.dataset.tag));
+    });
+  } catch (e) {
+    container.innerHTML = `<div class="loading-state">${Posts.escHtml(e.message)}</div>`;
+  }
+}
+
+// ============================================================
+//  Tag feed
+// ============================================================
+async function openTagFeed(tag) {
+  showPage('tagFeed');
+  document.getElementById('tagFeedTitle').textContent = `#${tag}`;
+  const container = document.getElementById('tagFeedList');
+  container.innerHTML = '<div class="loading-state"><span class="spinner"></span>Loading…</div>';
+  try {
+    const posts = await Posts.fetchFeed({ tag });
+    renderFeed(posts, container);
+  } catch (e) {
+    container.innerHTML = `<div class="loading-state">${Posts.escHtml(e.message)}</div>`;
+  }
+}
+
+// ============================================================
+//  Profile page
+// ============================================================
+async function loadProfilePage() {
+  if (!currentProfile) return;
+  const container = document.getElementById('profileContent');
+  const col = Posts.avatarColor(currentProfile.username);
+  const ini = Posts.initials(currentProfile.display_name || currentProfile.username);
+
+  // Fetch post count
+  let postCount = '—';
+  try {
+    const { count } = await _sb.from('posts').select('id', { count: 'exact', head: true }).eq('author_id', currentProfile.id);
+    postCount = count ?? 0;
+  } catch {}
+
+  container.innerHTML = `
+    <div class="profile-header">
+      <div class="profile-avatar-lg" style="background:${col}">${ini}</div>
+      <div class="profile-display-name">${Posts.escHtml(currentProfile.display_name || currentProfile.username)}</div>
+      <div class="profile-handle">@${Posts.escHtml(currentProfile.username)}</div>
+      ${currentProfile.bio ? `<div class="profile-bio">${Posts.escHtml(currentProfile.bio)}</div>` : ''}
+      <div class="profile-stats">
+        <div class="profile-stat">
+          <div class="profile-stat-num">${postCount}</div>
+          <div class="profile-stat-label">Posts</div>
+        </div>
+      </div>
+    </div>
+    <div id="profileFeed"><div class="loading-state"><span class="spinner"></span>Loading posts…</div></div>
+  `;
+
+  try {
+    const posts = await Posts.fetchFeed({ authorId: currentProfile.id });
+    renderFeed(posts, document.getElementById('profileFeed'));
+  } catch (e) {
+    document.getElementById('profileFeed').innerHTML =
+      `<div class="loading-state">${Posts.escHtml(e.message)}</div>`;
+  }
+}
+
+// ============================================================
+//  Search
+// ============================================================
+function openSearch() {
+  if (document.getElementById('searchInput').value.trim()) {
+    document.getElementById('searchResults').classList.add('open');
+  }
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) {
+    document.getElementById('searchResults').classList.remove('open');
+  }
+});
+
+function handleSearch(val) {
+  clearTimeout(searchTimer);
+  if (!val.trim()) { document.getElementById('searchResults').classList.remove('open'); return; }
+  searchTimer = setTimeout(async () => {
+    try {
+      const posts = await Posts.fetchFeed({ search: val, limit: 6 });
+      const el    = document.getElementById('searchResults');
+      if (!posts.length) {
+        el.innerHTML = '<div class="search-section-label">No results</div>';
+      } else {
+        el.innerHTML = `<div class="search-section-label">Posts</div>` +
+          posts.map(p => `
+            <div class="search-result-item" onclick="openPostDetail('${p.id}'); document.getElementById('searchResults').classList.remove('open');">
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:.82rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                  ${Posts.escHtml(p.body.slice(0, 70))}${p.body.length > 70 ? '…' : ''}
+                </div>
+                <div style="font-size:.72rem; color:var(--text-muted);">@${Posts.escHtml(p.profiles?.username || '')}</div>
+              </div>
+            </div>`).join('');
+      }
+      el.classList.add('open');
+    } catch {}
+  }, 300);
+}
+
+// ============================================================
+//  Trending tags
+// ============================================================
+async function loadTrending() {
+  const el = document.getElementById('trendingList');
+  try {
+    const tags = await Posts.fetchTrendingTags(8);
+    if (!tags.length) { el.innerHTML = '<div style="font-size:.8rem;color:var(--text-faint);padding:4px 0;">No tags yet</div>'; return; }
+    el.innerHTML = tags.map(t => `
+      <div class="trending-tag" onclick="openTagFeed('${Posts.escHtml(t.name)}')">
+        <span class="trending-tag-name">#${Posts.escHtml(t.name)}</span>
+        <span class="trending-tag-count">${t.count}</span>
+      </div>`).join('');
+  } catch { el.innerHTML = ''; }
+}
+
+// ============================================================
+//  Direct Messages
+// ============================================================
+async function loadConversations() {
+  if (!currentUser) return;
+  const container = document.getElementById('conversationList');
+  container.innerHTML = '<div class="loading-state">Loading…</div>';
+  try {
+    const { data, error } = await _sb
+      .from('messages')
+      .select('sender_id, receiver_id, body, created_at, read')
+      .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const seen = new Map();
+    (data || []).forEach(m => {
+      const partnerId = m.sender_id === currentUser.id ? m.receiver_id : m.sender_id;
+      if (!seen.has(partnerId)) seen.set(partnerId, m);
+    });
+
+    if (!seen.size) {
+      container.innerHTML = '<div class="empty-state" style="padding:24px;"><div class="empty-state-desc">No messages yet</div></div>';
+      return;
+    }
+
+    const partnerIds = [...seen.keys()];
+    const { data: profiles } = await _sb.from('profiles').select('id, username, display_name').in('id', partnerIds);
+    const profileMap = {};
+    (profiles || []).forEach(p => { profileMap[p.id] = p; });
+
+    container.innerHTML = [...seen.entries()].map(([pid, msg]) => {
+      const p = profileMap[pid] || {};
+      const col = Posts.avatarColor(p.username);
+      const ini = Posts.initials(p.display_name || p.username);
+      const unread = !msg.read && msg.receiver_id === currentUser.id;
+      return `
+        <div class="conversation-item${activeConvId === pid ? ' active' : ''}"
+          onclick="openConversation('${pid}','${Posts.escHtml(p.display_name || p.username || pid)}')">
+          <div class="sidebar-avatar" style="background:${col}">${ini}</div>
+          <div class="conv-info">
+            <div class="conv-name">${Posts.escHtml(p.display_name || p.username || pid)}</div>
+            <div class="conv-preview">${Posts.escHtml((msg.body || '').slice(0, 40))}</div>
+          </div>
+          ${unread ? '<div class="conv-unread"></div>' : ''}
+        </div>`;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = `<div class="loading-state">${Posts.escHtml(e.message)}</div>`;
+  }
+}
+
+async function openConversation(partnerId, partnerName) {
+  activeConvId = partnerId;
+  document.getElementById('chatEmpty').style.display = 'none';
+  document.getElementById('activeChatWrap').style.display = 'flex';
+
+  const col = Posts.avatarColor(partnerId);
+  const ini = Posts.initials(partnerName);
+  document.getElementById('chatHeader').innerHTML = `
+    <div class="sidebar-avatar" style="background:${col}; width:36px; height:36px; font-size:.85rem;">${ini}</div>
+    <span style="font-weight:600; font-size:.9rem;">${Posts.escHtml(partnerName)}</span>
+  `;
+
+  loadMessages(partnerId);
+  await _sb.from('messages').update({ read: true }).eq('sender_id', partnerId).eq('receiver_id', currentUser.id);
+  pollUnread();
+}
+
+async function loadMessages(partnerId) {
+  const container = document.getElementById('chatMessages');
+  container.innerHTML = '';
+  try {
+    const { data, error } = await _sb
+      .from('messages')
+      .select('*')
+      .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${currentUser.id})`)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+
+    (data || []).forEach(m => {
+      const mine = m.sender_id === currentUser.id;
+      const el   = document.createElement('div');
+      el.style.cssText = `display:flex; flex-direction:column; align-items:${mine ? 'flex-end' : 'flex-start'}`;
+      el.innerHTML = `
+        <div class="message-bubble ${mine ? 'mine' : 'theirs'}">${Posts.escHtml(m.body)}
+          <div class="message-time">${relTimeShort(m.created_at)}</div>
+        </div>`;
+      container.appendChild(el);
+    });
+    container.scrollTop = container.scrollHeight;
+  } catch {}
+}
+
+function relTimeShort(ts) {
+  const d = (Date.now() - new Date(ts)) / 1000;
+  if (d < 60)    return 'just now';
+  if (d < 3600)  return Math.floor(d / 60) + 'm ago';
+  if (d < 86400) return Math.floor(d / 3600) + 'h ago';
+  return new Date(ts).toLocaleDateString();
+}
+
+function chatInputKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const body  = input.value.trim();
+  if (!body || !activeConvId) return;
+  input.value = '';
+  try {
+    await _sb.from('messages').insert({ sender_id: currentUser.id, receiver_id: activeConvId, body });
+    loadMessages(activeConvId);
+  } catch (e) { showToast('Error sending: ' + e.message); }
+}
+
+function openDm(authorId, authorName) {
+  if (!currentUser) { showToast('Sign in to message'); return; }
+  if (authorId === currentUser.id) return;
+  showPage('messages');
+  openConversation(authorId, authorName);
+}
+
+// ============================================================
+//  Unread badge
+// ============================================================
+async function pollUnread() {
+  if (!currentUser) return;
+  try {
+    const { count } = await _sb
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('receiver_id', currentUser.id)
+      .eq('read', false);
+    const badge = document.getElementById('unreadBadge');
+    if (count > 0) { badge.textContent = count; badge.style.display = ''; }
+    else badge.style.display = 'none';
+  } catch {}
+}
+
+// ============================================================
+//  Realtime subscriptions
+// ============================================================
+function subscribeRealtime() {
+  realtimeSub = _sb
+    .channel('realtime-noted')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, () => {
+      if (currentPage === 'feed') loadFeed();
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+      if (payload.new.receiver_id === currentUser?.id) {
+        pollUnread();
+        if (activeConvId === payload.new.sender_id) loadMessages(activeConvId);
+        else showToast('New message received');
+      }
+    })
+    .subscribe();
+}
+</script>
+</body>
+</html>
